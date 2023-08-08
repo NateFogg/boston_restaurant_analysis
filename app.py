@@ -2,9 +2,7 @@ import requests
 import json
 import pandas as pd
 from flatten_json import flatten
-
-
-TOKEN = ''
+from config import TOKEN
 
 url = 'https://api.yelp.com/v3/businesses/search?location=Allston%2C%20Boston&term=restaurants&sort_by=distance&limit=50&offset=0'
 
@@ -43,15 +41,3 @@ if json_data:
 
     #flat_df = pd.DataFrame(flatten(json_data['businesses']))
     #print(flat_df.iloc[0])
-
-
-
-
-
-['Allston', 'Brighton', 'Arlington Center', 'Arlington Heights', 'Back Bay' , 'Beacon Hill',
-  'Brookline Village', 'Central Square', 'Charlestown', 'Chinatown', 'Coolidge Corner', 'Davis Square',
-  'Dorchester', 'Downtown', 'Huron Village' , 'Hyde Park', 'Inman Square', 'Jamaica Plain', 'Kendall Square', 'MIT'
-  'Leather District', 'Mattapan', 'Mattapan Square', 'Mission Hill', 'North Cambridge', 'North End', 'Porter Square',
-  'Roslindale', 'Dudley Square', 'East Arlington', 'East Boston', 'East Cambridge', 'Egleston Square', 'Fenway', 'Fields Corner'
-  'Financial District', 'Harvard Square', 'Roslindale Village', 'South Boston', 'South End', 'Teele Square', 'Uphams Corner', 
-  'Waterfront', 'West End', 'West Roxbury', 'West Roxbury Center']
