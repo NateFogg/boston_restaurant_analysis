@@ -1,3 +1,5 @@
 config.py
 .DS_Store
 __pycache__/data_load.cpython-39.pyc
+__pycache__/config.cpython-39.pyc
+decistion_tree.png
