@@ -3,12 +3,15 @@ import pandas as pd
 import time
 from config import TOKEN
 
+# define valid boston zip codes and yelp cuisine tags
 ZIPS = {'East Boston':['02128'], 'Charlestown': ['02129'], 'Allston': ['02163','02134'], 'Brighton':['02135'], 'Beacon Hill': ['02108'], 
         'Back Bay': ['02116', '02199'],'Chinatown': ['02111'], 'Dorchester': ['02121', '02122', '02124', '02125'], 'Fenway': ['02115', '02215'],
-          'Hyde Park': ['02136'], 'Jamaica Plain': ['02130'], 'Mattapan': ['02126'], 'Mission Hill': ['02120'],'North End': ['02113', '02109'], 'Roslindale': ['02131'], 
-          'Roxbury': ['02119'], 'South Boston': ['02127', '02210'], 'South End': ['02118'], 'West End': ['02114'], 'West Roxbury': ['02132'], 'Wharf District': ['02110'],
-           'Downtown': ['02203', '02201']}
-VALID_CUISINES = [
+        'Hyde Park': ['02136'], 'Jamaica Plain': ['02130'], 'Mattapan': ['02126'], 'Mission Hill': ['02120'],'North End': ['02113', '02109'],
+        'Roslindale': ['02131'], 'Roxbury': ['02119'], 'South Boston': ['02127', '02210'], 'South End': ['02118'], 'West End': ['02114'],
+        'West Roxbury': ['02132'], 'Wharf District': ['02110'],'Downtown': ['02203', '02201']
+        }
+
+VALID_CUISINES = (
     "afghan", "african", "senegalese", "southafrican", "newamerican", "tradamerican", "andalusian", "arabian",
     "arabpizza", "argentine", "armenian", "asianfusion", "asturian", "australian", "austrian", "baguettes",
     "bangladeshi", "bbq", "basque", "bavarian", "beergarden", "beerhall", "beisl", "belgian", "flemish", "bistros",
@@ -45,65 +48,59 @@ VALID_CUISINES = [
     "tex-mex", "thai", "traditional", "tradamerican", "turkish", "doner", "gokuniku", "homemade", "lahmacun", "oygur",
     "pide", "trinidadian", "turkishravioli", "uyghur", "uzbek", "vegan", "vegetarian", "venison", "vietnamese",
     "waffles", "wok", "wraps", "yugoslav"
-]
+)
 
-businesses = pd.DataFrame()
-final_json_data = []
+if __name__ == "__main__":
+    # initiate a list for data to be added to
+    valid_data = []
+    # keep track of number of calls to api and how many businesses yelp returned that are considered invalid
+    calls = 0
+    invalid_count = 0
 
-calls = 0
-invalid_count = 0
+    # Handle the API request error here
+    try:
+        # loop through the neighborhoods we are interested in
+        for neighborhood, zip_codes in ZIPS.items():
+            for code in zip_codes:
+                # offset will increase each api call per neighborhood to ensure we get most of the businesses
+                offset = 0
+                # add_count will remain above zero as long as an api call returns at least one valid business
+                add_count = 1
 
-for neighborhood, zip_codes in ZIPS.items():
-    for code in zip_codes:
+                while add_count > 0 and offset < 1000:
+                    add_count = 0
+                    # retrieve data from the api using the zip code and offset
+                    url = 'https://api.yelp.com/v3/businesses/search?location=Boston%2C%20MA%2C%20' + code + '&term=restaurants&sort_by=distance&limit=50&offset=' + str(offset)
+                    headers = {
+                                'accept': 'application/json',
+                                'Authorization': 'Bearer ' + TOKEN
+                            }
 
-        offset = 0
-        add_count = 1
+                    response = requests.get(url, headers=headers)
+                    json_data = response.json()
 
-        while add_count > 0 and offset < 1000:
-            add_count = 0
-            # grab data from the api
-            url = 'https://api.yelp.com/v3/businesses/search?location=Boston%2C%20MA%2C%20' + code + '&term=restaurants&sort_by=distance&limit=50&offset=' + str(offset)
-            headers = {
-                        'accept': 'application/json',
-                        'Authorization': 'Bearer ' + TOKEN
-                    }
+                    for bus in json_data['businesses']:
+                        # verify that the business is located within the target neighborhood
+                        if bus['location']['zip_code'] == code:
+                            # verify that yelp has returned a valid restaurant category
+                            for cuisine_dict in bus['categories']: 
+                                if cuisine_dict['alias'] in VALID_CUISINES:
+                                    # add business to valid data list
+                                    bus['neighborhood'] = neighborhood
+                                    valid_data.append(bus)
+                                    add_count += 1
+                                else:  
+                                    invalid_count += 1
+                                    break 
+                        else:
+                            invalid_count += 1
 
-            response = requests.get(url, headers=headers)
-
-            # Handle the API request error here
-            if response.status_code == 200:
-                json_data = response.json()
-            else:
-                print('Failed to retrieve data from the API.')
-                json_data = None
-
-            # if businesses - location - zip_code not in the list of neighborhood do not add
-            # may need to use a loop to drop the index within json data
-            business_list = json_data['businesses']
-            for bus in business_list:
-                # each new business set false
-                valid_alias = False
-
-                # verify that yelp has indeed returned a valid restaurant category
-                for tag_dict in bus['categories']: 
-                    if tag_dict['alias'] in VALID_CUISINES:
-                        valid_alias = True
-                        break
-                # verify that the business is located within the target neighborhood as well
-                if valid_alias and bus['location']['zip_code'] == code:
-                    bus['neighborhood'] = neighborhood
-                    final_json_data.append(bus)
-                    add_count += 1
-                else:
-                    # curious to see how many invalid businesses the yelp api returns under the search terms 
-                    invalid_count += 1
-
-
-            # increase the offset
-            offset += 50
-            if offset > 950:
-                print('EXCEEDED OFFSET LIMIT!')
-
-            # do not call from the api too fast
-            time.sleep(1)
-            calls += 1
+                    # increase the offset and calls before next iteration
+                    offset += 50
+                    calls += 1
+                    # do not call from the api too fast
+                    time.sleep(1)
+    except:
+        print('Failed to retrieve data from the API.')
+        valid_data = False
+                
